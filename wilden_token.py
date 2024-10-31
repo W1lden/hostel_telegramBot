@@ -1,2 +1,0 @@
-TOKEN = "7700622389:AAHqRRuuMCGKBzr0aVqkK2zKuC7xSMLr_2k"
-BOT_NAME = "@test1_hostel_bot"
