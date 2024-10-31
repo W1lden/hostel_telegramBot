@@ -1,9 +1,11 @@
 import os
 from dotenv import load_dotenv
-from telebot.async_telebot import AsyncTeleBot
+from telebot import TeleBot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-import asyncio
-from database import add_person_to_db, find_person_by_iin
+from database import add_person_to_db, find_person_by_iin, initialize_database
+
+# Initialize the database on startup
+initialize_database()
 
 # Load environment variables from .env file
 load_dotenv()
@@ -12,11 +14,7 @@ load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # Initialize the bot
-bot = AsyncTeleBot(TOKEN)
-
-# Dictionaries to track user states and data
-user_state = {}
-user_data = {}
+bot = TeleBot(TOKEN)
 
 # Create the main menu with two buttons
 def get_main_menu():
@@ -26,96 +24,93 @@ def get_main_menu():
     markup.add(search_button, add_button)
     return markup
 
+# Dictionary to hold temporary data for each user during the add person flow
+user_data = {}
+
 # Start command to display the menu
 @bot.message_handler(commands=["start"])
-async def hello_message(message):
+def hello_message(message):
     markup = get_main_menu()  # Create the keyboard with the buttons
-    await bot.send_message(message.chat.id, "Привет! Выберите действие:", reply_markup=markup)
+    bot.send_message(message.chat.id, "Привет! Выберите действие:", reply_markup=markup)
 
 # Handle the user's choice of action
 @bot.message_handler(func=lambda message: message.text in ["Поиск человек", "Добавить человека"])
-async def handle_choice(message):
+def handle_choice(message):
     user_id = message.chat.id
 
     if message.text == "Поиск человек":
-        # Set user state to "search"
-        user_state[user_id] = "search"
-        await bot.send_message(user_id, "Введите ИИН для поиска: ")
+        # Ask for ИИН and set the handler to search
+        bot.send_message(user_id, "Введите ИИН для поиска: ")
+        bot.register_next_step_handler(message, search_person)
 
     elif message.text == "Добавить человека":
-        # Set user state to "add"
-        user_state[user_id] = "add"
-        await bot.send_message(user_id, "Введите ИИН для добавления: ")
+        # Set up user_data and ask for ИИН to start the add person flow
+        user_data[user_id] = {}
+        bot.send_message(user_id, "Введите ИИН для добавления: ")
+        bot.register_next_step_handler(message, add_person_iin)
 
-# Handle ИИН input for both search and add actions
-@bot.message_handler(func=lambda message: True)
-async def handle_iin_input(message):
+# Search Person Flow
+def search_person(message):
+    iin = message.text
     user_id = message.chat.id
-    iin = message.text  # The ИИН input by the user
+    person = find_person_by_iin(iin)
 
-    if user_id in user_state:
-        if user_state[user_id] == "search":
-            # Search logic (same as before)
-            person = find_person_by_iin(iin)
-            if person:
-                is_criminal, is_man, is_child, is_student, description = person[1:]
-                await bot.send_message(
-                    user_id,
-                    f"Информация о человеке:\n"
-                    f"ИИН: {iin}\n"
-                    f"Преступник: {'Да' if is_criminal else 'Нет'}\n"
-                    f"Мужчина: {'Да' if is_man else 'Нет'}\n"
-                    f"Ребёнок: {'Да' if is_child else 'Нет'}\n"
-                    f"Студент: {'Да' if is_student else 'Нет'}\n"
-                    f"Описание: {description}"
-                )
-            else:
-                await bot.send_message(user_id, f"Человек с ИИН {iin} не найден.")
-            del user_state[user_id]
+    if person:
+        is_criminal, is_man, is_child, is_student, description = person[1:]
+        bot.send_message(
+            user_id,
+            f"Информация о человеке:\n"
+            f"ИИН: {iin}\n"
+            f"Преступник: {'Да' if is_criminal else 'Нет'}\n"
+            f"Мужчина: {'Да' if is_man else 'Нет'}\n"
+            f"Ребёнок: {'Да' if is_child else 'Нет'}\n"
+            f"Студент: {'Да' if is_student else 'Нет'}\n"
+            f"Описание: {description}"
+        )
+    else:
+        bot.send_message(user_id, f"Человек с ИИН {iin} не найден.")
 
-        elif user_state[user_id] == "add":
-            # Initialize user_data to collect details
-            user_data[user_id] = {'iin': iin}
-            await bot.send_message(user_id, "Человек является преступником? (Да/Нет)")
-            user_state[user_id] = "add_is_criminal"
-
-# Handle each step of the Add Person flow
-@bot.message_handler(func=lambda message: True)
-async def handle_add_person(message):
+# Add Person Flow - Step-by-Step
+def add_person_iin(message):
     user_id = message.chat.id
-    text = message.text.lower()
+    user_data[user_id]['iin'] = message.text  # Store ИИН
+    bot.send_message(user_id, "Человек является преступником? (Да/Нет)")
+    bot.register_next_step_handler(message, add_person_is_criminal)
 
-    # Only proceed if the user is in the add person flow
-    if user_id in user_state and user_state[user_id].startswith("add"):
-        if user_state[user_id] == "add_is_criminal":
-            user_data[user_id]['is_criminal'] = text == 'да'
-            await bot.send_message(user_id, "Человек является мужчиной? (Да/Нет)")
-            user_state[user_id] = "add_is_man"
-        
-        elif user_state[user_id] == "add_is_man":
-            user_data[user_id]['is_man'] = text == 'да'
-            await bot.send_message(user_id, "Человек является ребенком? (Да/Нет)")
-            user_state[user_id] = "add_is_child"
-        
-        elif user_state[user_id] == "add_is_child":
-            user_data[user_id]['is_child'] = text == 'да'
-            await bot.send_message(user_id, "Человек является студентом? (Да/Нет)")
-            user_state[user_id] = "add_is_student"
-        
-        elif user_state[user_id] == "add_is_student":
-            user_data[user_id]['is_student'] = text == 'да'
-            await bot.send_message(user_id, "Добавьте описание человека:")
-            user_state[user_id] = "add_description"
-        
-        elif user_state[user_id] == "add_description":
-            # Save the description and add the person to the database
-            user_data[user_id]['description'] = message.text
-            add_person_to_db(user_data[user_id]['iin'], user_data[user_id])
+def add_person_is_criminal(message):
+    user_id = message.chat.id
+    user_data[user_id]['is_criminal'] = message.text.lower() == 'да'
+    bot.send_message(user_id, "Человек является мужчиной? (Да/Нет)")
+    bot.register_next_step_handler(message, add_person_is_man)
 
-            await bot.send_message(user_id, "Человек успешно добавлен в базу данных.")
-            # Clear the state and data for the user
-            del user_state[user_id]
-            del user_data[user_id]
+def add_person_is_man(message):
+    user_id = message.chat.id
+    user_data[user_id]['is_man'] = message.text.lower() == 'да'
+    bot.send_message(user_id, "Человек является ребенком? (Да/Нет)")
+    bot.register_next_step_handler(message, add_person_is_child)
 
-# Start polling for messages
-asyncio.run(bot.polling())
+def add_person_is_child(message):
+    user_id = message.chat.id
+    user_data[user_id]['is_child'] = message.text.lower() == 'да'
+    bot.send_message(user_id, "Человек является студентом? (Да/Нет)")
+    bot.register_next_step_handler(message, add_person_is_student)
+
+def add_person_is_student(message):
+    user_id = message.chat.id
+    user_data[user_id]['is_student'] = message.text.lower() == 'да'
+    bot.send_message(user_id, "Добавьте описание человека:")
+    bot.register_next_step_handler(message, add_person_description)
+
+def add_person_description(message):
+    user_id = message.chat.id
+    user_data[user_id]['description'] = message.text  # Save description
+
+    # Save person to the database
+    add_person_to_db(user_data[user_id]['iin'], user_data[user_id])
+
+    bot.send_message(user_id, "Человек успешно добавлен в базу данных.")
+    # Clear user data after adding the person
+    del user_data[user_id]
+
+# Start the bot in polling mode
+bot.polling()
