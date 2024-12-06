@@ -1,5 +1,3 @@
-# database.py
-
 import sqlite3
 
 # Create table if it doesn't exist
@@ -8,10 +6,10 @@ def initialize_database():
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS people
                       (iin TEXT PRIMARY KEY,
-                       is_criminal BOOLEAN,
-                       is_man BOOLEAN,
-                       is_child BOOLEAN,
-                       is_student BOOLEAN,
+                       has_debt BOOLEAN,
+                       health_issues BOOLEAN,
+                       mentally_unstable BOOLEAN,
+                       substance_abuse BOOLEAN,
                        description TEXT)''')
     conn.commit()
     conn.close()
@@ -20,9 +18,9 @@ def initialize_database():
 def add_person_to_db(iin, data):
     conn = sqlite3.connect('data/people.db')
     cursor = conn.cursor()
-    cursor.execute('''INSERT INTO people (iin, is_criminal, is_man, is_child, is_student, description)
+    cursor.execute('''INSERT INTO people (iin, has_debt, health_issues, mentally_unstable, substance_abuse, description)
                       VALUES (?, ?, ?, ?, ?, ?)''',
-                   (iin, data['is_criminal'], data['is_man'], data['is_child'], data['is_student'], data['description']))
+                   (iin, data['has_debt'], data['health_issues'], data['mentally_unstable'], data['substance_abuse'], data['description']))
     conn.commit()
     conn.close()
 
