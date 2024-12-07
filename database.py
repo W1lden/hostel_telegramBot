@@ -5,12 +5,13 @@ def initialize_database():
     conn = sqlite3.connect('data/people.db')
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS people
-                      (iin TEXT PRIMARY KEY,
-                       has_debt BOOLEAN,
-                       health_issues BOOLEAN,
-                       mentally_unstable BOOLEAN,
-                       substance_abuse BOOLEAN,
-                       description TEXT)''')
+                  (iin TEXT PRIMARY KEY,
+                   has_debt BOOLEAN,
+                   health_issues BOOLEAN,
+                   mentally_unstable BOOLEAN,
+                   drug_use BOOLEAN,
+                   alcohol_use BOOLEAN,
+                   description TEXT)''')
     conn.commit()
     conn.close()
 
@@ -18,9 +19,9 @@ def initialize_database():
 def add_person_to_db(iin, data):
     conn = sqlite3.connect('data/people.db')
     cursor = conn.cursor()
-    cursor.execute('''INSERT INTO people (iin, has_debt, health_issues, mentally_unstable, substance_abuse, description)
-                      VALUES (?, ?, ?, ?, ?, ?)''',
-                   (iin, data['has_debt'], data['health_issues'], data['mentally_unstable'], data['substance_abuse'], data['description']))
+    cursor.execute('''INSERT INTO people (iin, has_debt, health_issues, mentally_unstable, drug_use, alcohol_use, description)
+                      VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                   (iin, data['has_debt'], data['health_issues'], data['mentally_unstable'], data['drug_use'], data['alcohol_use'], data['description']))
     conn.commit()
     conn.close()
 

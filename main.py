@@ -20,12 +20,13 @@ questions = [
     "Имеется задолженность?",
     "Проблемы со здоровьем?",
     "Психически нестабилен?",
-    "Употребляет наркотики/алкоголь?"
+    "Употребляет наркотики?",
+    "Употребляет алкоголь?"
 ]
 
 # Начальное состояние кнопок
 def get_initial_answers():
-    return {i: "Нет" for i in range(len(questions))}
+    return {i: "Да" for i in range(len(questions))}
 
 # Создание кнопок анкеты
 def create_survey_markup(answers):
@@ -127,11 +128,12 @@ def add_person_description(message):
     add_person_to_db(
         user_data[user_id]["iin"],
         {
-            "has_debt": user_data[user_id]["answers"][0] == "Да",
-            "health_issues": user_data[user_id]["answers"][1] == "Да",
-            "mentally_unstable": user_data[user_id]["answers"][2] == "Да",
-            "substance_abuse": user_data[user_id]["answers"][3] == "Да",
-            "description": user_data[user_id]["description"]
+        "has_debt": user_data[user_id]["answers"][0] == "Да",
+        "health_issues": user_data[user_id]["answers"][1] == "Да",
+        "mentally_unstable": user_data[user_id]["answers"][2] == "Да",
+        "drug_use": user_data[user_id]["answers"][3] == "Да",  
+        "alcohol_use": user_data[user_id]["answers"][4] == "Да",  
+        "description": user_data[user_id]["description"]
         }
     )
 
@@ -149,7 +151,7 @@ def search_person(message):
 
     person = find_person_by_iin(iin)
     if person:
-        has_debt, health_issues, mentally_unstable, substance_abuse, description = person[1:]
+        has_debt, health_issues, mentally_unstable, drug_use, alcohol_use, description = person[1:]
         bot.send_message(
             user_id,
             f"Информация о человеке:\n"
@@ -157,7 +159,8 @@ def search_person(message):
             f"Имеется задолженность: {'Да' if has_debt else 'Нет'}\n"
             f"Проблемы со здоровьем: {'Да' if health_issues else 'Нет'}\n"
             f"Психически нестабилен: {'Да' if mentally_unstable else 'Нет'}\n"
-            f"Употребляет наркотики/алкоголь: {'Да' if substance_abuse else 'Нет'}\n"
+            f"Употребляет наркотики: {'Да' if drug_use else 'Нет'}\n"
+            f"Употребляет алкоголь: {'Да' if alcohol_use else 'Нет'}\n"
             f"Описание: {description}"
         )
     else:
